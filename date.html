@@ -1,0 +1,746 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Today's Date & Calendar</title>
+
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Source+Sans+3:wght@400;600;700&display=swap"
+            rel="stylesheet" />
+
+        <style>
+            *,
+            *::before,
+            *::after {
+                box-sizing: border-box;
+                margin: 0;
+                padding: 0;
+            }
+
+            :root {
+                /* Colors */
+                --color-bg: #fdf8f0;
+                --color-surface: #ffffff;
+                --color-primary: #1a3a5c;
+                --color-primary-light: #2a5a8c;
+                --color-accent: #c8400a;
+                --color-accent-light: #e8600a;
+                --color-text: #111111;
+                --color-text-muted: #444444;
+                --color-border: #c8b89a;
+                --color-highlight: #fff3cd;
+                --color-highlight-border: #f0c040;
+                --color-day-today: #1a3a5c;
+                --color-day-today-text: #ffffff;
+                --color-weekend: #c8400a;
+                --color-nav-bg: #1a3a5c;
+                --color-nav-text: #ffffff;
+                --color-nav-active: #c8400a;
+
+                /* Typography */
+                --font-heading: "Merriweather", Georgia, serif;
+                --font-body: "Source Sans 3", Arial, sans-serif;
+
+                /* Spacing */
+                --space-xs: 8px;
+                --space-sm: 16px;
+                --space-md: 32px;
+                --space-lg: 64px;
+            }
+
+            html {
+                font-size: 20px;
+            }
+
+            body {
+                font-family: var(--font-body);
+                background: var(--color-bg);
+                color: var(--color-text);
+                min-height: 100vh;
+            }
+
+            /* ── Navigation ── */
+            nav[data-comment="nav-bar"] {
+                background: var(--color-nav-bg);
+                padding: 0;
+                display: flex;
+                align-items: stretch;
+                gap: 0;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            }
+
+            .nav-logo[data-comment="nav-logo"] {
+                padding: 18px 28px;
+                font-family: var(--font-heading);
+                font-size: 1.35rem;
+                font-weight: 700;
+                color: #ffffff;
+                letter-spacing: 0.01em;
+            }
+
+            .nav-links[data-comment="nav-links"] {
+                display: flex;
+                margin-left: auto;
+            }
+
+            .nav-btn {
+                background: none;
+                border: none;
+                color: var(--color-nav-text);
+                font-family: var(--font-body);
+                font-size: 1.25rem;
+                font-weight: 600;
+                padding: 18px 36px;
+                cursor: pointer;
+                border-bottom: 5px solid transparent;
+                transition: background 0.2s, border-color 0.2s;
+                letter-spacing: 0.02em;
+            }
+
+            .nav-btn:hover {
+                background: rgba(255,255,255,0.1);
+            }
+
+            .nav-btn.active {
+                border-bottom-color: var(--color-nav-active);
+                background: rgba(255,255,255,0.08);
+            }
+
+            /* ── Views ── */
+            .view {
+                display: none;
+                opacity: 0;
+                transition: opacity 0.35s ease;
+            }
+
+            .view.active {
+                display: block;
+                opacity: 1;
+            }
+
+            /* ── Page 1: Today ── */
+
+            .today-hero[data-comment="today-hero"] {
+                background: var(--color-primary);
+                color: #ffffff;
+                text-align: center;
+                padding: 56px var(--space-md) 48px;
+            }
+
+            .today-label[data-comment="today-label"] {
+                font-family: var(--font-body);
+                font-size: 1.2rem;
+                font-weight: 600;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+                color: #aaccee;
+                margin-bottom: 14px;
+            }
+
+            .today-weekday[data-comment="today-weekday"] {
+                font-family: var(--font-heading);
+                font-size: 2.6rem;
+                font-weight: 700;
+                margin-bottom: 10px;
+                color: #e0f0ff;
+            }
+
+            .today-date[data-comment="today-date"] {
+                font-family: var(--font-heading);
+                font-size: 5.2rem;
+                font-weight: 900;
+                line-height: 1.05;
+                color: #ffffff;
+                letter-spacing: -0.01em;
+            }
+
+            .today-clock[data-comment="today-clock"] {
+                background: var(--color-surface);
+                border-bottom: 3px solid var(--color-border);
+                text-align: center;
+                padding: 36px var(--space-md);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 8px;
+            }
+
+            .clock-label[data-comment="clock-label"] {
+                font-size: 1rem;
+                font-weight: 600;
+                letter-spacing: 0.15em;
+                text-transform: uppercase;
+                color: var(--color-text-muted);
+            }
+
+            .clock-time[data-comment="clock-time"] {
+                font-family: var(--font-heading);
+                font-size: 4rem;
+                font-weight: 700;
+                color: var(--color-primary);
+                letter-spacing: 0.04em;
+                line-height: 1.1;
+            }
+
+            .clock-ampm[data-comment="clock-ampm"] {
+                font-family: var(--font-body);
+                font-size: 1.4rem;
+                font-weight: 700;
+                color: var(--color-text-muted);
+                letter-spacing: 0.1em;
+            }
+
+            .today-info[data-comment="today-info"] {
+                display: grid;
+                grid-template-columns: 1fr 1fr 1fr;
+                gap: var(--space-sm);
+                padding: var(--space-md);
+                max-width: 960px;
+                margin: 0 auto;
+            }
+
+            .info-card[data-comment^="info-card"] {
+                background: var(--color-surface);
+                border: 2px solid var(--color-border);
+                border-radius: 12px;
+                padding: 28px 20px;
+                text-align: center;
+            }
+
+            .info-card-icon[data-comment^="info-card-icon"] {
+                font-size: 2.6rem;
+                margin-bottom: 10px;
+                display: block;
+            }
+
+            .info-card-value[data-comment^="info-card-value"] {
+                font-family: var(--font-heading);
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--color-primary);
+                display: block;
+                margin-bottom: 6px;
+            }
+
+            .info-card-label[data-comment^="info-card-label"] {
+                font-size: 0.95rem;
+                font-weight: 600;
+                color: var(--color-text-muted);
+                text-transform: uppercase;
+                letter-spacing: 0.1em;
+            }
+
+            /* ── Page 2: Calendar ── */
+
+            .calendar-header[data-comment="calendar-header"] {
+                background: var(--color-primary);
+                color: #ffffff;
+                text-align: center;
+                padding: 40px var(--space-md) 36px;
+            }
+
+            .calendar-title[data-comment="calendar-title"] {
+                font-family: var(--font-heading);
+                font-size: 3rem;
+                font-weight: 900;
+                color: #ffffff;
+                margin-bottom: 6px;
+            }
+
+            .calendar-subtitle[data-comment="calendar-subtitle"] {
+                font-size: 1.1rem;
+                color: #aaccee;
+                font-weight: 600;
+                letter-spacing: 0.12em;
+                text-transform: uppercase;
+            }
+
+            .calendar-nav[data-comment="calendar-nav"] {
+                background: var(--color-surface);
+                border-bottom: 3px solid var(--color-border);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: var(--space-md);
+                padding: 20px var(--space-md);
+            }
+
+            .cal-nav-btn {
+                background: var(--color-primary);
+                color: #ffffff;
+                border: none;
+                font-size: 1.6rem;
+                font-weight: 700;
+                width: 60px;
+                height: 60px;
+                border-radius: 50%;
+                cursor: pointer;
+                transition: background 0.2s, transform 0.1s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+
+            .cal-nav-btn:hover {
+                background: var(--color-primary-light);
+                transform: scale(1.05);
+            }
+
+            .cal-month-label[data-comment="cal-month-label"] {
+                font-family: var(--font-heading);
+                font-size: 2rem;
+                font-weight: 700;
+                color: var(--color-primary);
+                min-width: 320px;
+                text-align: center;
+            }
+
+            .calendar-grid-wrap[data-comment="calendar-grid-wrap"] {
+                max-width: 860px;
+                margin: var(--space-md) auto;
+                padding: 0 var(--space-md);
+            }
+
+            .calendar-days-header[data-comment="calendar-days-header"] {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 4px;
+                margin-bottom: 6px;
+            }
+
+            .cal-day-name {
+                text-align: center;
+                font-size: 1rem;
+                font-weight: 700;
+                color: var(--color-text-muted);
+                padding: 8px 0;
+                letter-spacing: 0.08em;
+                text-transform: uppercase;
+            }
+
+            .cal-day-name.weekend {
+                color: var(--color-weekend);
+            }
+
+            .calendar-grid[data-comment="calendar-grid"] {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+                gap: 4px;
+            }
+
+            .cal-cell {
+                aspect-ratio: 1;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: var(--font-body);
+                font-size: 1.35rem;
+                font-weight: 600;
+                border-radius: 10px;
+                cursor: default;
+                border: 2px solid transparent;
+                transition: background 0.15s;
+                min-height: 64px;
+            }
+
+            .cal-cell.empty {
+                background: none;
+            }
+
+            .cal-cell.normal {
+                background: var(--color-surface);
+                border-color: var(--color-border);
+                color: var(--color-text);
+            }
+
+            .cal-cell.weekend-day {
+                color: var(--color-weekend);
+            }
+
+            .cal-cell.today-cell {
+                background: var(--color-day-today);
+                color: var(--color-day-today-text);
+                border-color: var(--color-day-today);
+                font-weight: 900;
+                font-size: 1.5rem;
+                box-shadow: 0 4px 14px rgba(26,58,92,0.35);
+            }
+
+            .cal-cell.other-month {
+                color: #bbbbbb;
+                border-color: #e8e0d0;
+                background: #fafafa;
+            }
+
+            .calendar-legend[data-comment="calendar-legend"] {
+                max-width: 860px;
+                margin: 0 auto var(--space-md);
+                padding: 0 var(--space-md);
+                display: flex;
+                gap: var(--space-md);
+                align-items: center;
+                flex-wrap: wrap;
+            }
+
+            .legend-item[data-comment^="legend-item"] {
+                display: flex;
+                align-items: center;
+                gap: 10px;
+                font-size: 1rem;
+                font-weight: 600;
+                color: var(--color-text-muted);
+            }
+
+            .legend-dot {
+                width: 28px;
+                height: 28px;
+                border-radius: 6px;
+                flex-shrink: 0;
+            }
+
+            .legend-dot.today {
+                background: var(--color-day-today);
+            }
+
+            .legend-dot.weekend {
+                background: var(--color-weekend);
+                opacity: 0.25;
+                border: 2px solid var(--color-weekend);
+            }
+
+            /* ── Holidays section ── */
+            .holidays-section[data-comment="holidays-section"] {
+                background: var(--color-surface);
+                border-top: 3px solid var(--color-border);
+                padding: var(--space-md);
+            }
+
+            .holidays-title[data-comment="holidays-title"] {
+                font-family: var(--font-heading);
+                font-size: 1.8rem;
+                font-weight: 700;
+                color: var(--color-primary);
+                text-align: center;
+                margin-bottom: var(--space-sm);
+            }
+
+            .holidays-list[data-comment="holidays-list"] {
+                max-width: 680px;
+                margin: 0 auto;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .holiday-item[data-comment^="holiday-item"] {
+                display: flex;
+                align-items: center;
+                gap: var(--space-sm);
+                background: var(--color-highlight);
+                border: 2px solid var(--color-highlight-border);
+                border-radius: 10px;
+                padding: 14px 20px;
+            }
+
+            .holiday-date[data-comment^="holiday-date"] {
+                font-family: var(--font-heading);
+                font-size: 1.1rem;
+                font-weight: 700;
+                color: var(--color-accent);
+                min-width: 130px;
+            }
+
+            .holiday-name[data-comment^="holiday-name"] {
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: var(--color-text);
+            }
+        </style>
+    </head>
+    <body>
+
+        <!-- Navigation -->
+        <nav data-comment="nav-bar">
+            <div class="nav-logo" data-comment="nav-logo">📅 My Calendar</div>
+            <div class="nav-links" data-comment="nav-links">
+                <button
+                    class="nav-btn active"
+                    data-comment="nav-btn-today"
+                    onclick="navigate('today')">
+                    Today
+                </button>
+                <button
+                    class="nav-btn"
+                    data-comment="nav-btn-calendar"
+                    onclick="navigate('calendar')">
+                    Calendar
+                </button>
+            </div>
+        </nav>
+
+        <!-- ══ VIEW: TODAY ══ -->
+        <div id="view-today" class="view active" data-comment="view-today">
+
+            <!-- Section 1: Big date display -->
+            <section class="today-hero" data-comment="today-hero">
+                <p class="today-label" data-comment="today-label">Today is</p>
+                <p class="today-weekday" data-comment="today-weekday" id="js-weekday">—</p>
+                <p class="today-date" data-comment="today-date" id="js-date">—</p>
+            </section>
+
+            <!-- Section 2: Clock -->
+            <section class="today-clock" data-comment="today-clock">
+                <span class="clock-label" data-comment="clock-label">Current Time</span>
+                <span class="clock-time" data-comment="clock-time" id="js-time">—</span>
+                <span class="clock-ampm" data-comment="clock-ampm" id="js-ampm">—</span>
+            </section>
+
+            <!-- Section 3: Info cards -->
+            <section class="today-info" data-comment="today-info">
+                <div class="info-card" data-comment="info-card-day">
+                    <span class="info-card-icon" data-comment="info-card-icon-day">📆</span>
+                    <span class="info-card-value" data-comment="info-card-value-day" id="js-day-number">—</span>
+                    <span class="info-card-label" data-comment="info-card-label-day">Day of Year</span>
+                </div>
+                <div class="info-card" data-comment="info-card-week">
+                    <span class="info-card-icon" data-comment="info-card-icon-week">🗓️</span>
+                    <span class="info-card-value" data-comment="info-card-value-week" id="js-week-number">—</span>
+                    <span class="info-card-label" data-comment="info-card-label-week">Week of Year</span>
+                </div>
+                <div class="info-card" data-comment="info-card-days-left">
+                    <span class="info-card-icon" data-comment="info-card-icon-days-left">🌅</span>
+                    <span class="info-card-value" data-comment="info-card-value-days-left" id="js-days-left">—</span>
+                    <span class="info-card-label" data-comment="info-card-label-days-left">Days Left in Year</span>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- ══ VIEW: CALENDAR ══ -->
+        <div id="view-calendar" class="view" data-comment="view-calendar">
+
+            <!-- Section 1: Month heading -->
+            <header class="calendar-header" data-comment="calendar-header">
+                <h1 class="calendar-title" data-comment="calendar-title">Calendar</h1>
+                <p class="calendar-subtitle" data-comment="calendar-subtitle" id="js-cal-year-label">—</p>
+            </header>
+
+            <!-- Section 2: Month nav + grid -->
+            <div class="calendar-nav" data-comment="calendar-nav">
+                <button
+                    class="cal-nav-btn"
+                    data-comment="cal-btn-prev"
+                    onclick="changeMonth(-1)"
+                    aria-label="Previous month">&#8592;</button>
+                <span class="cal-month-label" data-comment="cal-month-label" id="js-cal-month">—</span>
+                <button
+                    class="cal-nav-btn"
+                    data-comment="cal-btn-next"
+                    onclick="changeMonth(1)"
+                    aria-label="Next month">&#8594;</button>
+            </div>
+
+            <div class="calendar-grid-wrap" data-comment="calendar-grid-wrap">
+                <div class="calendar-days-header" data-comment="calendar-days-header">
+                    <div class="cal-day-name" data-comment="cal-day-sun">Sun</div>
+                    <div class="cal-day-name" data-comment="cal-day-mon">Mon</div>
+                    <div class="cal-day-name" data-comment="cal-day-tue">Tue</div>
+                    <div class="cal-day-name" data-comment="cal-day-wed">Wed</div>
+                    <div class="cal-day-name" data-comment="cal-day-thu">Thu</div>
+                    <div class="cal-day-name weekend" data-comment="cal-day-fri">Fri</div>
+                    <div class="cal-day-name weekend" data-comment="cal-day-sat">Sat</div>
+                </div>
+                <div class="calendar-grid" data-comment="calendar-grid" id="js-cal-grid">
+                    <!-- filled by JS -->
+                </div>
+            </div>
+
+            <div class="calendar-legend" data-comment="calendar-legend">
+                <div class="legend-item" data-comment="legend-item-today">
+                    <div class="legend-dot today"></div>
+                    Today
+                </div>
+                <div class="legend-item" data-comment="legend-item-weekend">
+                    <div class="legend-dot weekend"></div>
+                    Weekend
+                </div>
+            </div>
+
+            <!-- Section 3: Upcoming holidays -->
+            <section class="holidays-section" data-comment="holidays-section">
+                <h2 class="holidays-title" data-comment="holidays-title">Upcoming US Holidays</h2>
+                <div class="holidays-list" data-comment="holidays-list">
+                    <div class="holiday-item" data-comment="holiday-item-1">
+                        <span class="holiday-date" data-comment="holiday-date-1">Apr 20, 2026</span>
+                        <span class="holiday-name" data-comment="holiday-name-1">Easter Sunday</span>
+                    </div>
+                    <div class="holiday-item" data-comment="holiday-item-2">
+                        <span class="holiday-date" data-comment="holiday-date-2">May 25, 2026</span>
+                        <span class="holiday-name" data-comment="holiday-name-2">Memorial Day</span>
+                    </div>
+                    <div class="holiday-item" data-comment="holiday-item-3">
+                        <span class="holiday-date" data-comment="holiday-date-3">Jul 4, 2026</span>
+                        <span class="holiday-name" data-comment="holiday-name-3">Independence Day</span>
+                    </div>
+                    <div class="holiday-item" data-comment="holiday-item-4">
+                        <span class="holiday-date" data-comment="holiday-date-4">Sep 7, 2026</span>
+                        <span class="holiday-name" data-comment="holiday-name-4">Labor Day</span>
+                    </div>
+                    <div class="holiday-item" data-comment="holiday-item-5">
+                        <span class="holiday-date" data-comment="holiday-date-5">Nov 26, 2026</span>
+                        <span class="holiday-name" data-comment="holiday-name-5">Thanksgiving Day</span>
+                    </div>
+                    <div class="holiday-item" data-comment="holiday-item-6">
+                        <span class="holiday-date" data-comment="holiday-date-6">Dec 25, 2026</span>
+                        <span class="holiday-name" data-comment="holiday-name-6">Christmas Day</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <script>
+            // ── SPA navigation ──
+            function navigate(page) {
+                document.querySelectorAll('.view').forEach(v => {
+                    v.classList.remove('active');
+                    setTimeout(() => {
+                        if (!v.classList.contains('active')) v.style.display = 'none';
+                    }, 350);
+                });
+                const target = document.getElementById('view-' + page);
+                target.style.display = 'block';
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => target.classList.add('active'))
+                );
+                document.querySelectorAll('.nav-btn').forEach(btn => {
+                    btn.classList.toggle('active', btn.dataset.comment === 'nav-btn-' + page);
+                });
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            // ── Today page ──
+            const WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+            const MONTHS_LONG = ['January','February','March','April','May','June',
+                                 'July','August','September','October','November','December'];
+
+            function getDayOfYear(d) {
+                const start = new Date(d.getFullYear(), 0, 0);
+                const diff = d - start;
+                return Math.floor(diff / 86400000);
+            }
+
+            function getWeekNumber(d) {
+                const onejan = new Date(d.getFullYear(), 0, 1);
+                return Math.ceil((((d - onejan) / 86400000) + onejan.getDay() + 1) / 7);
+            }
+
+            function updateToday() {
+                const now = new Date();
+                const h = now.getHours();
+                const m = now.getMinutes();
+                const s = now.getSeconds();
+                const ampm = h >= 12 ? 'PM' : 'AM';
+                const h12 = h % 12 || 12;
+                const pad = n => String(n).padStart(2, '0');
+
+                document.getElementById('js-weekday').textContent = WEEKDAYS[now.getDay()];
+                document.getElementById('js-date').textContent =
+                    MONTHS_LONG[now.getMonth()] + ' ' + now.getDate() + ', ' + now.getFullYear();
+                document.getElementById('js-time').textContent =
+                    pad(h12) + ':' + pad(m) + ':' + pad(s);
+                document.getElementById('js-ampm').textContent = ampm;
+
+                const dayOfYear = getDayOfYear(now);
+                const isLeap = (now.getFullYear() % 4 === 0 && now.getFullYear() % 100 !== 0)
+                    || now.getFullYear() % 400 === 0;
+                const daysInYear = isLeap ? 366 : 365;
+                document.getElementById('js-day-number').textContent = dayOfYear;
+                document.getElementById('js-week-number').textContent = getWeekNumber(now);
+                document.getElementById('js-days-left').textContent = daysInYear - dayOfYear;
+            }
+
+            updateToday();
+            setInterval(updateToday, 1000);
+
+            // ── Calendar page ──
+            const MONTHS_SHORT = ['January','February','March','April','May','June',
+                                  'July','August','September','October','November','December'];
+            let calYear, calMonth;
+
+            function initCalendar() {
+                const now = new Date();
+                calYear = now.getFullYear();
+                calMonth = now.getMonth();
+                renderCalendar();
+            }
+
+            function changeMonth(delta) {
+                calMonth += delta;
+                if (calMonth > 11) { calMonth = 0; calYear++; }
+                if (calMonth < 0)  { calMonth = 11; calYear--; }
+                renderCalendar();
+            }
+
+            function renderCalendar() {
+                const now = new Date();
+                const todayY = now.getFullYear();
+                const todayM = now.getMonth();
+                const todayD = now.getDate();
+
+                document.getElementById('js-cal-month').textContent =
+                    MONTHS_SHORT[calMonth] + ' ' + calYear;
+                document.getElementById('js-cal-year-label').textContent = calYear;
+
+                const grid = document.getElementById('js-cal-grid');
+                grid.innerHTML = '';
+
+                const firstDay = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+                const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+                const prevMonthDays = new Date(calYear, calMonth, 0).getDate();
+
+                // Previous month tail
+                for (let i = firstDay - 1; i >= 0; i--) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cal-cell other-month';
+                    cell.dataset.comment = 'cal-cell-prev-' + (prevMonthDays - i);
+                    cell.textContent = prevMonthDays - i;
+                    grid.appendChild(cell);
+                }
+
+                // Current month
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const cell = document.createElement('div');
+                    const dayOfWeek = new Date(calYear, calMonth, d).getDay();
+                    const isToday = d === todayD && calMonth === todayM && calYear === todayY;
+                    const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
+
+                    let cls = 'cal-cell normal';
+                    if (isToday) cls += ' today-cell';
+                    else if (isWeekend) cls += ' weekend-day';
+
+                    cell.className = cls;
+                    cell.dataset.comment = 'cal-cell-' + d;
+                    cell.textContent = d;
+                    grid.appendChild(cell);
+                }
+
+                // Next month fill
+                const totalCells = grid.children.length;
+                const remaining = totalCells % 7 === 0 ? 0 : 7 - (totalCells % 7);
+                for (let d = 1; d <= remaining; d++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cal-cell other-month';
+                    cell.dataset.comment = 'cal-cell-next-' + d;
+                    cell.textContent = d;
+                    grid.appendChild(cell);
+                }
+            }
+
+            initCalendar();
+        </script>
+    </body>
+</html>
