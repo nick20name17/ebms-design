@@ -7,8 +7,10 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "bash ./validate-html.sh $(git diff --cached --name-only --diff-filter=ACM -- '*.html')",
-                        "if": "Bash(git commit*)"
+                        "command": "staged=$(git diff --cached --name-only --diff-filter=ACM -- '*.html'); if [ -z \"$staged\" ]; then exit 0; fi; bash ./validate-html.sh $staged; if [ $? -ne 0 ]; then printf '{\"continue\":false,\"stopReason\":\"HTML validation failed. Fix errors before committing.\"}'; fi",
+                        "if": "Bash(git commit*)",
+                        "timeout": 30,
+                        "statusMessage": "Validating HTML..."
                     }
                 ]
             }

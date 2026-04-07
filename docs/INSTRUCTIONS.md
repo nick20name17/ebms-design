@@ -360,7 +360,7 @@ Before every commit, verify:
 
 ## Validation
 
-There is a validator script (`validate-html.sh`) that runs automatically before every commit via a git pre-commit hook. It checks:
+There is a validator script (`validate-html.sh`) that runs automatically before every commit via a Claude Code PreToolUse hook (configured in `.claude/settings.json`). It checks:
 
 - Every visible element has a `data-comment` attribute
 - No duplicate `data-comment` values
@@ -390,8 +390,8 @@ project-root/
 │   ├── INSTRUCTIONS.md    ← core rules (file structure, data-comment, CSS, JS, SPA, git)
 │   ├── STATE.md           ← store pattern, CRUD, UI states (loading/empty/error)
 │   └── REACT-READY.md    ← React conversion conventions (components, routes, shadcn hints)
-├── .githooks/
-│   └── pre-commit         ← validates HTML before every commit
+├── .claude/
+│   └── settings.json      ← Claude hook validates HTML before every commit
 ├── validate-html.sh       ← validation script
 ├── index.html             ← main page (or the only page)
 ├── catalog.html           ← additional pages if needed
