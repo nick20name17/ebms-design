@@ -145,7 +145,9 @@ No two elements in the same file may share a `data-comment` value. Before commit
 
 ## SPA Navigation
 
-Many projects use client-side navigation (multiple "pages" in one file). Follow this pattern:
+**SPA is the default.** All pages/views go into a single `.html` file unless the user explicitly asks for separate HTML files. This keeps state shared across views and simplifies navigation.
+
+Follow this pattern:
 
 ```html
 <!-- Navigation triggers -->
@@ -253,15 +255,41 @@ Use whichever is cleaner. For one-off sections, `data-comment` selectors keep HT
 
 ### Responsive Design
 
-Add media queries when the project requires responsive behavior. Not every project needs them — confirm before adding. When used:
+Add media queries when the project requires responsive behavior. Not every project needs them — confirm before adding.
+
+Use Tailwind-aligned breakpoints so responsive behavior carries over to the final React + Tailwind build:
 
 ```css
-@media (max-width: 768px) {
-    .hero[data-comment="home-hero"] {
-        grid-template-columns: 1fr;
-    }
+:root {
+    /* Breakpoints (reference — use in media queries) */
+    /* sm: 640px, md: 768px, lg: 1024px, xl: 1280px, 2xl: 1536px */
+}
+
+/* Mobile first — base styles are mobile, then scale up */
+.products-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+}
+
+@media (min-width: 640px) {   /* sm */
+    .products-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (min-width: 1024px) {  /* lg */
+    .products-grid { grid-template-columns: repeat(3, 1fr); }
+}
+
+@media (min-width: 1280px) {  /* xl */
+    .products-grid { grid-template-columns: repeat(4, 1fr); }
 }
 ```
+
+**Rules:**
+- **Mobile first** — base CSS is the mobile layout, use `min-width` to scale up (matches Tailwind's approach)
+- **Use only these breakpoints:** `640px` (sm), `768px` (md), `1024px` (lg), `1280px` (xl), `1536px` (2xl)
+- **Comment the breakpoint name** next to each media query for readability
+- Not every project needs all breakpoints — use only what the design requires
 
 ---
 
@@ -272,6 +300,361 @@ Add media queries when the project requires responsive behavior. Not every proje
 - Keep JS at the bottom inside a single `<script>` tag.
 - SPA navigation logic (if applicable) should follow the pattern above.
 - Interactive elements (forms, modals, accordions) should work in the preview but don't need real backend connections. Mock the behavior.
+
+---
+
+## State & Data Management
+
+These prototypes behave like real apps — full CRUD, filters, selections, form state — but with no backend. All data lives in memory and resets on page reload. That's fine.
+
+### The Store
+
+Use this vanilla JS store (Zustand-like pattern, no dependencies):
+
+```js
+function createStore(initialState) {
+    let state = structuredClone(initialState);
+    const listeners = new Set();
+    return {
+        get: () => state,
+        set(updater) {
+            state = typeof updater === 'function'
+                ? updater(state)
+                : { ...state, ...updater };
+            listeners.forEach(fn => fn(state));
+        },
+        subscribe(fn) {
+            listeners.add(fn);
+            return () => listeners.delete(fn);
+        }
+    };
+}
+```
+
+### Rules
+
+- **In-memory only.** No `localStorage`, `sessionStorage`, or cookies. Data resets on reload — this is intentional.
+- **One store per app.** Define it once at the top of the `<script>` block with all initial data (seed/mock data).
+- **Store survives SPA navigation.** Since views are just toggled divs, the store stays alive across all views — no need to persist or restore state between pages.
+- **Seed with realistic mock data.** Pre-populate the store with enough entries to make the UI look real (e.g., 5–10 users, a few products, etc.).
+- **Full CRUD should work.** If the design shows a user list with add/edit/delete — all of those actions should actually work against the store and the UI should update.
+- **Subscribe to re-render.** After mutating the store, the UI must reflect the change. Use `store.subscribe()` to trigger render functions.
+
+### Example Usage
+
+```js
+// Define store with seed data
+const store = createStore({
+    users: [
+        { id: 1, name: 'Anna Lee', email: 'anna@example.com' },
+        { id: 2, name: 'Mark Chen', email: 'mark@example.com' },
+    ],
+    selectedUserId: null,
+});
+
+// Create
+function addUser(name, email) {
+    store.set(s => ({
+        users: [...s.users, { id: Date.now(), name, email }]
+    }));
+}
+
+// Update
+function updateUser(id, updates) {
+    store.set(s => ({
+        users: s.users.map(u => u.id === id ? { ...u, ...updates } : u)
+    }));
+}
+
+// Delete
+function deleteUser(id) {
+    store.set(s => ({
+        users: s.users.filter(u => u.id !== id),
+        selectedUserId: s.selectedUserId === id ? null : s.selectedUserId
+    }));
+}
+
+// UI sync
+function renderUsers() {
+    const { users } = store.get();
+    document.querySelector('[data-comment="users-list"]').innerHTML =
+        users.map(u => `<div data-comment="users-item-${u.id}">${u.name}</div>`).join('');
+}
+
+store.subscribe(renderUsers);
+renderUsers(); // initial render
+```
+
+### What Belongs in the Store
+
+| Data type | In store? | Example |
+| --- | --- | --- |
+| Entity collections (CRUD) | ✅ Yes | `users`, `products`, `orders` |
+| UI selection state | ✅ Yes | `selectedUserId`, `activeTab` |
+| Form drafts | ✅ Yes | `editingUser: { name: '...' }` |
+| Filters / search query | ✅ Yes | `searchTerm`, `filterStatus` |
+| SPA current page | ❌ No | Handled by `navigate()` |
+| Pure visual toggles | ❌ No | Modal open/close — use class toggles |
+
+---
+
+## UI States
+
+Every data-driven view should account for all possible states — not just the "happy path" with data. These are real design decisions that carry over to the React build.
+
+### Required States
+
+For any view that displays data from the store, implement these four states:
+
+**1. Loading state** — shown briefly on initial render or when navigating to a view. Use CSS skeleton placeholders:
+
+```css
+.skeleton {
+    background: linear-gradient(90deg, var(--color-border) 25%, transparent 50%, var(--color-border) 75%);
+    background-size: 200% 100%;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    border-radius: 4px;
+}
+
+@keyframes skeleton-pulse {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+```
+
+```js
+// Simulate loading on view navigation
+function navigate(page, params = {}) {
+    // ... existing logic ...
+    showLoadingState(page);
+    setTimeout(() => renderView(page), 300); // brief fake delay
+}
+
+function showLoadingState(page) {
+    const container = document.getElementById('view-' + page);
+    container.innerHTML = getSkeletonHTML(page);
+}
+```
+
+Create skeleton layouts that roughly match the real content shape — a few rectangular bars for text, larger blocks for cards/images. Maps directly to shadcn's `skeleton` component later.
+
+**2. Empty state** — shown when a collection has zero items. Always include a message and an action:
+
+```html
+<div data-comment="users-empty-state" data-component="card" class="empty-state">
+    <div data-comment="users-empty-icon" class="empty-state-icon">👤</div>
+    <h3 data-comment="users-empty-heading">No users yet</h3>
+    <p data-comment="users-empty-text">Get started by adding your first user.</p>
+    <button data-comment="users-empty-cta" data-component="button" onclick="openAddUserForm()">
+        Add User
+    </button>
+</div>
+```
+
+```css
+.empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 64px 24px;
+    text-align: center;
+    color: var(--color-muted);
+}
+
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+```
+
+**3. Data state** — the normal view with data. This is what you'd build anyway.
+
+**4. Error state** — shown when an action fails. Since we have no real API, use this for form validation errors:
+
+```html
+<div data-comment="users-form-error" data-component="alert" class="error-message" style="display: none;">
+    <span data-comment="users-form-error-text">Please fill in all required fields.</span>
+</div>
+```
+
+```css
+.error-message {
+    padding: 12px 16px;
+    background: color-mix(in srgb, var(--color-error) 10%, transparent);
+    border: 1px solid var(--color-error);
+    border-radius: 6px;
+    color: var(--color-error);
+    font-size: 14px;
+}
+```
+
+### Render Pattern
+
+Structure render functions to handle all states:
+
+```js
+function renderUserList() {
+    const { users, isLoading } = store.get();
+    const container = document.querySelector('[data-comment="users-list-container"]');
+
+    if (isLoading) {
+        container.innerHTML = renderUserListSkeleton();
+        return;
+    }
+
+    if (users.length === 0) {
+        container.innerHTML = renderUserListEmpty();
+        return;
+    }
+
+    container.innerHTML = users.map(u => renderUserCard(u)).join('');
+}
+```
+
+### Form Validation
+
+Validate before store actions. Show inline errors next to fields:
+
+```js
+function validateUserForm(data) {
+    const errors = {};
+    if (!data.name.trim()) errors.name = 'Name is required';
+    if (!data.email.trim()) errors.email = 'Email is required';
+    else if (!data.email.includes('@')) errors.email = 'Invalid email address';
+    return { valid: Object.keys(errors).length === 0, errors };
+}
+
+function handleAddUser() {
+    const data = getFormData();
+    const { valid, errors } = validateUserForm(data);
+
+    clearFormErrors();
+    if (!valid) {
+        showFormErrors(errors); // display inline error messages
+        return;
+    }
+
+    addUser(data);
+    closeForm();
+}
+```
+
+This maps directly to react-hook-form + zod validation in the final React build.
+
+---
+
+## React-Ready Conventions
+
+These prototypes will eventually be implemented as React apps (Vite + React Query + TanStack Router + shadcn/ui + Tailwind). The rules below make that conversion straightforward — follow them now so the HTML prototypes map cleanly to the final stack.
+
+### Render Functions = Future Components
+
+Every distinct UI piece should have its own render function. Name them like React components — `PascalCase` with a `render` prefix:
+
+```js
+function renderUserCard(user) { ... }
+function renderUserList() { ... }
+function renderUserForm() { ... }
+function renderSidebar() { ... }
+function renderDashboardStats() { ... }
+```
+
+Each render function should be self-contained: it receives data (or reads from the store) and returns/injects HTML. One render function = one future React component.
+
+### Views = Future Routes
+
+SPA views map directly to TanStack Router routes. Name and structure them accordingly:
+
+| SPA view ID | Future route |
+| --- | --- |
+| `view-dashboard` | `/dashboard` |
+| `view-users` | `/users` |
+| `view-user-detail` | `/users/$userId` |
+| `view-settings` | `/settings` |
+
+If a view needs a parameter (like a user ID), pass it through the `navigate()` function and store it in the store:
+
+```js
+function navigate(page, params = {}) {
+    // ... existing navigation logic ...
+    if (params.id) store.set({ selectedId: params.id });
+}
+
+// Usage
+navigate('user-detail', { id: 42 });
+```
+
+### Store Shape = Future API Cache
+
+Structure store data as if it came from a REST API — this maps directly to React Query cache keys later:
+
+```js
+const store = createStore({
+    // Each key = a future React Query query key
+    // Arrays of objects with `id` — like API responses
+    users: [
+        { id: 1, name: 'Anna Lee', email: 'anna@example.com', role: 'admin' },
+        { id: 2, name: 'Mark Chen', email: 'mark@example.com', role: 'user' },
+    ],
+    products: [
+        { id: 1, title: 'Widget', price: 29.99, status: 'active' },
+    ],
+
+    // UI state — this becomes Zustand/local state in React, not React Query
+    selectedUserId: null,
+    searchTerm: '',
+    filterStatus: 'all',
+});
+```
+
+**Rules for store data shape:**
+- Every entity has a numeric or string `id`
+- Collections are always arrays (not objects/maps)
+- Nest related data only when it's always fetched together (e.g., `user.address`), otherwise keep flat
+- Separate server-like data (entities) from UI-only state (selections, filters)
+
+### Action Functions = Future Mutations
+
+CRUD action functions map to React Query mutations. Keep them separate from render logic:
+
+```js
+// These become useMutation hooks in React
+function addUser(data) { store.set(s => ({ users: [...s.users, { id: Date.now(), ...data }] })); }
+function updateUser(id, data) { store.set(s => ({ users: s.users.map(u => u.id === id ? { ...u, ...data } : u) })); }
+function deleteUser(id) { store.set(s => ({ users: s.users.filter(u => u.id !== id) })); }
+```
+
+Group actions by entity at the top of the script, before render functions:
+
+```
+1. createStore() definition
+2. Store initialization with seed data
+3. Action functions (grouped by entity: user actions, product actions, etc.)
+4. Render functions (grouped by view/component)
+5. Event handlers and listeners
+6. store.subscribe() calls
+7. Initial render calls
+8. navigate() and SPA logic
+```
+
+### shadcn/ui Component Hints
+
+When building UI elements that have a direct shadcn equivalent, add a `data-component` attribute as a hint for the future implementation:
+
+```html
+<div data-comment="users-dialog" data-component="dialog">...</div>
+<button data-comment="users-add-btn" data-component="button">Add User</button>
+<table data-comment="users-table" data-component="table">...</table>
+<input data-comment="users-search" data-component="input" />
+<div data-comment="users-card-1" data-component="card">...</div>
+<select data-comment="users-filter" data-component="select">...</select>
+<div data-comment="users-tabs" data-component="tabs">...</div>
+```
+
+Common shadcn components to reference: `button`, `input`, `select`, `checkbox`, `radio-group`, `switch`, `slider`, `textarea`, `dialog`, `sheet`, `dropdown-menu`, `popover`, `tooltip`, `table`, `card`, `tabs`, `accordion`, `badge`, `avatar`, `alert`, `toast`, `separator`, `skeleton`, `pagination`, `breadcrumb`, `command`, `calendar`, `date-picker`, `form`.
+
+Only add `data-component` when there's a clear 1:1 match. Don't force it on custom layouts.
 
 ---
 
