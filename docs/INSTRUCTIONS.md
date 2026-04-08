@@ -143,9 +143,66 @@ No two elements in the same file may share a `data-comment` value. Before commit
 
 ---
 
-## SPA Navigation
+## Images & Assets
 
-**SPA is the default.** All pages/views go into a single `.html` file unless the user explicitly asks for separate HTML files. This keeps state shared across views and simplifies navigation.
+External image files are allowed — not everything needs to be self-contained. Images sit alongside `.html` files in the same directory and are referenced via relative paths.
+
+```
+project-root/
+├── index.html
+├── products.html
+├── hero-background.avif
+├── product-widget.png
+├── logo.svg
+└── ...
+```
+
+### Format guide
+
+| Use case | Format |
+| --- | --- |
+| Photos, hero backgrounds | AVIF or WebP (smaller, modern) |
+| Product images, UI graphics with transparency | PNG |
+| Logos, icons, illustrations | SVG |
+| Fallback for older compatibility | JPEG |
+
+### Rules
+
+- Reference images with relative paths: `<img src="product-widget.png" />`
+- No base64 inlining — it bloats the HTML file and makes review harder
+- Images still need `data-comment` attributes: `<img data-comment="hero-image" src="..." />`
+- Background images in CSS don't need `data-comment` (not directly clickable in the review platform)
+
+---
+
+## Navigation: SPA vs. Multi-page
+
+**SPA is the default** for app-like interfaces (dashboards, admin tools, workflows). Use separate `.html` files when the project is a content-heavy site with distinct page types (e-commerce storefronts, marketing sites with many pages).
+
+### When to use multi-page
+
+Use separate `.html` files when:
+- The project has 5+ meaningfully different page types (homepage, category, product detail, cart, account…)
+- Pages don't share significant UI state
+- The user explicitly asks for separate files
+
+Use SPA when:
+- It's an app (dashboard, management tool, form flow)
+- Views share state (filters, selections, user session)
+- The project is small (3 pages or fewer)
+
+### Multi-page navigation
+
+In multi-page projects, use normal `<a href>` links instead of `navigate()`:
+
+```html
+<a data-comment="nav-link-products" href="products.html">Products</a>
+<a data-comment="nav-link-cart" href="cart.html">Cart</a>
+```
+
+Each `.html` file is fully independent. `data-comment` values only need to be unique within a single file — not across the whole project.
+
+### SPA navigation (original pattern)
 
 Follow this pattern:
 
@@ -198,7 +255,7 @@ function navigate(page) {
 }
 ```
 
-Each view's elements still need unique `data-comment` values. Prefix with the view name:
+Each view's elements still need unique `data-comment` values within the file. Prefix with the view name:
 
 ```
 home-hero-heading       (not just "hero-heading")
@@ -291,6 +348,20 @@ Use Tailwind-aligned breakpoints so responsive behavior carries over to the fina
 - **Comment the breakpoint name** next to each media query for readability
 - Not every project needs all breakpoints — use only what the design requires
 
+### Optional: clamp() for fluid scaling
+
+`clamp(min, preferred, max)` lets values scale continuously with viewport width — no breakpoint needed. Use it when the design calls for fluid typography or spacing:
+
+```css
+/* Font size scales from 1.5rem at narrow viewports to 3rem at wide */
+h1 { font-size: clamp(1.5rem, 4vw, 3rem); }
+
+/* Gap scales between 24px and 72px */
+.section { gap: clamp(24px, 4vw, 72px); }
+```
+
+This is optional — use it when it simplifies the design. Fixed breakpoints are still fine.
+
 ---
 
 ## JavaScript Conventions
@@ -302,6 +373,27 @@ Use Tailwind-aligned breakpoints so responsive behavior carries over to the fina
 - Interactive elements (forms, modals, accordions) should work in the preview but don't need real backend connections. Mock the behavior.
 - For state management and UI state patterns, see [STATE.md](./docs/STATE.md).
 - For React-ready code conventions, see [REACT-READY.md](./docs/REACT-READY.md).
+
+### JS-injected components
+
+Some components (drawers, overlays, carts) are built entirely in JavaScript and injected into the DOM. Rules:
+
+- Injected HTML strings still need `data-comment` attributes — they're just strings, add them normally:
+
+```js
+function renderCartDrawer() {
+    return `
+        <div data-comment="cart-drawer" class="cd-drawer">
+            <h2 data-comment="cart-drawer-heading" class="cd-heading">Your Cart</h2>
+            ...
+        </div>
+    `;
+}
+document.body.insertAdjacentHTML('beforeend', renderCartDrawer());
+```
+
+- Use a short BEM-style class prefix for all injected component classes (e.g., `.cd-` for cart drawer, `.sd-` for search dropdown) to avoid collisions with page styles
+- Injected components that are toggled open/closed use class toggles (`.is-open`, `.is-active`), not the store — these are pure visual states
 
 ---
 
